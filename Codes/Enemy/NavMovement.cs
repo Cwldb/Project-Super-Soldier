@@ -16,6 +16,8 @@ namespace _01_Scripts.Enemy
 
         public Entity Entity { get; set; }
         private EntityStat _statCompo;
+        private float _baseSpeed;
+        private float _speedMultiplier = 1f;
 
         public bool IsArrived => !agent.pathPending && agent.remainingDistance <= agent.stoppingDistance + stopOffset;
 
@@ -30,12 +32,12 @@ namespace _01_Scripts.Enemy
 
         public void AfterInitialize()
         {
-            agent.speed = _statCompo.SubscribeStat(moveSpeedStat, HandleMoveSpeedChange, 1f);
+            SetSpeed(_statCompo.SubscribeStat(moveSpeedStat, HandleMoveSpeedChange, 1f));
         }
 
         private void HandleMoveSpeedChange(StatSO stat, float currentValue, float prevValue)
         {
-            agent.speed = currentValue;
+            SetSpeed(currentValue);
         }
 
         private void OnDestroy()
@@ -71,7 +73,17 @@ namespace _01_Scripts.Enemy
         }
             
         public void SetVelocity(Vector3 velocity) => agent.velocity = velocity;
-        public void SetSpeed(float speed) => agent.speed = speed;
+        public void SetSpeed(float speed)
+        {
+            _baseSpeed = speed;
+            agent.speed = _baseSpeed * _speedMultiplier;
+        }
+
+        public void SetSpeedMultiplier(float multiplier)
+        {
+            _speedMultiplier = Mathf.Clamp01(multiplier);
+            if (agent != null) agent.speed = _baseSpeed * _speedMultiplier;
+        }
         public void SetDestination(Vector3 destination) => agent.SetDestination(destination);
 
     }

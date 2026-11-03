@@ -37,7 +37,20 @@ namespace _01_Scripts.Players
             bullet.transform.rotation = Quaternion.Euler(_entity.transform.rotation.eulerAngles);
             _particle.Play();
             bullet.GetComponent<BulletMove>().Damage = damage;
+            PlayerItems items = _entity.GetComponent<PlayerItems>();
+            bullet.Configure(items != null ? items.GetLevel(ItemType.Piercing) : 0,
+                items != null ? items.GetLevel(ItemType.Incendiary) : 0, false,
+                items != null ? items.GetLevel(ItemType.Ricochet) : 0,
+                items != null ? items.GetLevel(ItemType.Frost) : 0);
             CameraShake.Instance.Shake();
+        }
+
+        public void FireItemBullet(Vector3 position, Quaternion rotation, float damage)
+        {
+            BulletMove bullet = _poolManager.Pop<BulletMove>(bulletPool);
+            bullet.transform.SetPositionAndRotation(position, rotation);
+            bullet.Damage = damage;
+            bullet.Configure(0, 0, true);
         }
     }
 }

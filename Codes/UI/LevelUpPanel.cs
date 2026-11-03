@@ -24,6 +24,7 @@ namespace _01_Scripts.UI
         [Header("Icons")]
         [SerializeField] private Sprite[] levelUpIcons;
         [SerializeField] private Sprite[] activeIcons;
+        [SerializeField] private Sprite[] itemIcons;
         
         [Header("Description")]
         [SerializeField] private string[] descriptionTexts;
@@ -36,16 +37,19 @@ namespace _01_Scripts.UI
         private Dictionary<string, Action> _statIncreases;
         private List<string> _selectedStats;
         private List<int> _selectedIndices;
+        private PlayerItems _playerItems;
+        private bool _selectionMade;
 
         private void Start()
         {
             GameManager.Instance.OnLevelUp += EnablePanels;
             GameManager.Instance.OnActiveLevelUp += EnableActivePanels;
-            GameManager.Instance.OnEnemyCount += LevelUpText;
+            GameManager.Instance.OnExperienceChanged += LevelUpText;
             
             _entity = GameManager.Instance.PlayerFinder.Target;
             _playerStat = GameManager.Instance.PlayerFinder.Target.GetCompo<PlayerStat>();
             _playerSkillSet = GameManager.Instance.PlayerFinder.Target.GetCompo<PlayerSkillSet>();
+            _playerItems = _entity.GetComponent<PlayerItems>();
             
             _statIncreases = new Dictionary<string, Action>
             {
@@ -66,12 +70,15 @@ namespace _01_Scripts.UI
         }
         private void LevelUpText()
         {
-            levelText.text = GameManager.Instance.GetCurNeedLevel().ToString();
+            levelText.text = $"Lv.{GameManager.Instance.GetCurLevel()}";
         }
         
         private void ChooseRandomStats()
         {
             List<string> statNames = new List<string>(_statIncreases.Keys);
+            if (_playerItems != null)
+                foreach (ItemType item in Enum.GetValues(typeof(ItemType)))
+                    if (_playerItems.CanUpgrade(item)) statNames.Add("Item:" + item);
             _selectedStats = new List<string>();
             _selectedIndices = new List<int>();
             
@@ -83,13 +90,14 @@ namespace _01_Scripts.UI
                 if (!_selectedStats.Contains(stat))
                 {
                     _selectedStats.Add(stat);
-                    _selectedIndices.Add(randIndex);
+                    _selectedIndices.Add(randIndex < _statIncreases.Count ? randIndex : -1);
                 }
             }
         }
 
         private void EnableActivePanels()
         {
+            _selectionMade = false;
             Transform trm = activeLevelUpPanel.transform;
             Sequence seq = DOTween.Sequence();
             activeLevelUpPanel.SetActive(true);
@@ -126,13 +134,15 @@ namespace _01_Scripts.UI
             seq.Append(trm.GetChild(1).transform.DOMoveY(1400, 0.3f));
             seq.OnComplete(() =>
             {
-                statLevelUpPanel.SetActive(false);
+                activeLevelUpPanel.SetActive(false);
                 Time.timeScale = 1;
+                GameManager.Instance.CompleteLevelUp();
             });
         }
         
         private void EnablePanels()
         {
+            _selectionMade = false;
             Transform trm = statLevelUpPanel.transform;
             Sequence seq = DOTween.Sequence();
             statLevelUpPanel.SetActive(true);
@@ -142,11 +152,32 @@ namespace _01_Scripts.UI
             for (int i = 0; i < statLevelUpPanel.transform.childCount; i++)
             {
                 var child = statLevelUpPanel.transform.GetChild(i);
+                if (_selectedIndices[i] < 0)
+                {
+                    ItemType item = (ItemType)Enum.Parse(typeof(ItemType), _selectedStats[i].Substring(5));
+                    int level = _playerItems.GetLevel(item);
+                    child.GetComponentInChildren<TMP_Text>().text = PlayerItems.ItemName(item) +
+                        (level == 0 ? " [신규]" : $" Lv.{level + 1}");
+                    child.transform.GetChild(1).GetComponent<TMP_Text>().text = _playerItems.Description(item);
+                    Image itemImage = child.transform.GetChild(2).GetComponent<Image>();
+                    if (itemImage != null)
+                    {
+                        if (itemIcons != null && (int)item < itemIcons.Length)
+                            itemImage.sprite = itemIcons[(int)item];
+                        else if (levelUpIcons.Length > 0)
+                            itemImage.sprite = levelUpIcons[(int)item % levelUpIcons.Length];
+                        itemImage.color = PlayerItems.ItemColor(item);
+                    }
+                    continue;
+                }
                 child.GetComponentInChildren<TMP_Text>().text = levelNames[_selectedIndices[i]];
 
                 var image = child.transform.GetChild(2).GetComponent<Image>();
                 if (image != null)
+                {
                     image.sprite = levelUpIcons[_selectedIndices[i]];
+                    image.color = Color.white;
+                }
                 
                 var description = child.transform.GetChild(1).GetComponent<TMP_Text>();
                 if(description != null)
@@ -174,11 +205,14 @@ namespace _01_Scripts.UI
             {
                 statLevelUpPanel.SetActive(false);
                 Time.timeScale = 1;
+                GameManager.Instance.CompleteLevelUp();
             });
         }
 
         public void SelectActive1()
         {
+            if (_selectionMade) return;
+            _selectionMade = true;
             activeLevelUpPanel.transform.GetChild(0).transform.DOPunchScale(new Vector3(0.2f, 0.2f, 0.2f), 0.2f).SetUpdate(true).OnComplete(() =>
             {
                 _playerSkillSet.radius += 1f;
@@ -188,6 +222,8 @@ namespace _01_Scripts.UI
 
         public void SelectActive2()
         {
+            if (_selectionMade) return;
+            _selectionMade = true;
             activeLevelUpPanel.transform.GetChild(1).transform.DOPunchScale(new Vector3(0.2f, 0.2f, 0.2f), 0.2f).SetUpdate(true).OnComplete(() =>
             {
                 _playerSkillSet.damage += 10f;
@@ -197,6 +233,8 @@ namespace _01_Scripts.UI
         
         public void Select1()
         {
+            if (_selectionMade) return;
+            _selectionMade = true;
             statLevelUpPanel.transform.GetChild(0).transform.DOPunchScale(new Vector3(0.2f, 0.2f, 0.2f), 0.2f).SetUpdate(true).OnComplete(() =>
             {
                 ApplyStatIncrease(0);
@@ -206,6 +244,8 @@ namespace _01_Scripts.UI
 
         public void Select2()
         {
+            if (_selectionMade) return;
+            _selectionMade = true;
             
             statLevelUpPanel.transform.GetChild(1).transform.DOPunchScale(new Vector3(0.2f, 0.2f, 0.2f), 0.2f).SetUpdate(true).OnComplete(() =>
             {
@@ -216,6 +256,8 @@ namespace _01_Scripts.UI
 
         public void Select3()
         {
+            if (_selectionMade) return;
+            _selectionMade = true;
             statLevelUpPanel.transform.GetChild(2).transform.DOPunchScale(new Vector3(0.2f, 0.2f, 0.2f), 0.2f).SetUpdate(true).OnComplete(() =>
             {
                 ApplyStatIncrease(2);
@@ -226,7 +268,20 @@ namespace _01_Scripts.UI
         private void ApplyStatIncrease(int index)
         {
             string statName = _selectedStats[index];
+            if (statName.StartsWith("Item:"))
+            {
+                _playerItems.Upgrade((ItemType)Enum.Parse(typeof(ItemType), statName.Substring(5)));
+                return;
+            }
             _statIncreases[statName]?.Invoke();
+        }
+
+        private void OnDestroy()
+        {
+            if (GameManager.Instance == null) return;
+            GameManager.Instance.OnLevelUp -= EnablePanels;
+            GameManager.Instance.OnActiveLevelUp -= EnableActivePanels;
+            GameManager.Instance.OnExperienceChanged -= LevelUpText;
         }
     }
 }

@@ -28,6 +28,8 @@ namespace _01_Scripts.Players
         protected override void Awake()
         {
             base.Awake();
+            if (GetComponent<PlayerItems>() == null)
+                gameObject.AddComponent<PlayerItems>();
             _stateMachine = new EntityStateMachine(this, states);
             _skillSet = GetComponentInChildren<PlayerSkillSet>();
 
@@ -97,6 +99,8 @@ namespace _01_Scripts.Players
 
         private void HandleDeadEvent()
         {
+            if (IsDead) return;
+            IsDead = true;
             //_stateMachine.ChangeState("DEAD");
             PlayerInput.OnDisable();
             GameManager.Instance.OnGameOver.Invoke();

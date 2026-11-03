@@ -15,6 +15,8 @@ namespace _01_Scripts.Enemy
         protected Animator _animator;
 
         protected Pool _pool;
+        [SerializeField, Min(1)] private int experienceReward = 1;
+        public int ExperienceReward => Mathf.Max(1, experienceReward);
 
         #region temp
         public float attackRange = 2f;

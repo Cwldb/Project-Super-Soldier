@@ -53,12 +53,12 @@ namespace _01_Scripts.Enemy
             IsDead = true;
             _stateChannel.SendEventMessage(EnemyState.DEAD);
             StartCoroutine(EnemyDying());
+            GameManager.Instance.AddExperience(ExperienceReward);
         }
 
         private IEnumerator EnemyDying()
         {
             yield return new WaitForSeconds(1);
-            GameManager.Instance.AddEnemyCount();
             yield return new WaitForSeconds(3f);
             _pool.Push(this);
             _healthCompo.currentHealth = _healthCompo.maxHealth;
